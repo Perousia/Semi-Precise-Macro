@@ -1,14 +1,14 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Guna.UI2.WinForms;
 
-namespace WindowsFormsApp1
+namespace NezulaMacro
 {
     public partial class Form1 : Form
     {
-        // Importing necessary methods for global hooks
         [DllImport("user32.dll")]
         private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 
@@ -20,7 +20,7 @@ namespace WindowsFormsApp1
         private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
 
         [DllImport("kernel32.dll")]
-        private static extern IntPtr GetModuleHandle(string lpModuleName);
+        private static extern IntPtr GetModuleHandle(string? lpModuleName);
 
         private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -37,15 +37,15 @@ namespace WindowsFormsApp1
         private const int MOUSEEVENTF_LEFTDOWN = 0x02;
         private const int MOUSEEVENTF_LEFTUP = 0x04;
 
-        private Thread clickThread;
+        private Thread? clickThread;
         private bool isClicking = false;
-        private float clickInterval = 100.0f; // Default to 100ms
+        private float clickInterval = 100.0f;
 
-        private Guna2TextBox cpsTextBox;
-        private Guna2CheckBox toggleCheckBox;
-        private Guna2Button startButton;
-        private Guna2Button stopButton;
-        private Guna2TextBox keybindTextBox;
+        private Guna2TextBox? cpsTextBox;
+        private Guna2CheckBox? toggleCheckBox;
+        private Guna2Button? startButton;
+        private Guna2Button? stopButton;
+        private Guna2TextBox? keybindTextBox;
 
         private Keys toggleKey = Keys.None;
         private bool shiftPressed = false;
@@ -56,12 +56,11 @@ namespace WindowsFormsApp1
             InitializeCustomComponents();
             _proc = HookCallback;
             _hookID = SetHook(_proc);
-            this.Load += Form1_Load; // Adding the Load event handler
+            this.Load += Form1_Load;
         }
 
-        private void Form1_Load(object sender, EventArgs e)
+        private void Form1_Load(object? sender, EventArgs e)
         {
-            // Perform any additional setup after the form is loaded
         }
 
         private void InitializeCustomComponents()
@@ -70,7 +69,6 @@ namespace WindowsFormsApp1
             this.ClientSize = new System.Drawing.Size(660, 260);
             this.Text = "AutoClicker";
 
-            // Left Mouse Button Panel
             Guna2Panel leftPanel = new Guna2Panel
             {
                 BorderColor = System.Drawing.Color.Gray,
@@ -131,17 +129,17 @@ namespace WindowsFormsApp1
             leftPanel.Controls.Add(keybindTextBox);
         }
 
-        private void KeybindTextBox_KeyDown(object sender, KeyEventArgs e)
+        private void KeybindTextBox_KeyDown(object? sender, KeyEventArgs e)
         {
             toggleKey = e.KeyCode;
             shiftPressed = e.Shift;
-            keybindTextBox.Text = (shiftPressed ? "Shift + " : "") + toggleKey.ToString();
-            e.SuppressKeyPress = true; // Prevents the beep sound
+            keybindTextBox!.Text = (shiftPressed ? "Shift + " : "") + toggleKey.ToString();
+            e.SuppressKeyPress = true;
         }
 
         private void StartClicking()
         {
-            if (float.TryParse(cpsTextBox.Text, out float cps) && cps > 0)
+            if (float.TryParse(cpsTextBox!.Text, out float cps) && cps > 0)
             {
                 clickInterval = 1000.0f / cps;
             }
@@ -184,7 +182,7 @@ namespace WindowsFormsApp1
             using (var curProcess = System.Diagnostics.Process.GetCurrentProcess())
             using (var curModule = curProcess.MainModule)
             {
-                return SetWindowsHookEx(WH_KEYBOARD_LL, proc, GetModuleHandle(curModule.ModuleName), 0);
+                return SetWindowsHookEx(WH_KEYBOARD_LL, proc, GetModuleHandle(curModule?.ModuleName), 0);
             }
         }
 
@@ -224,7 +222,10 @@ namespace WindowsFormsApp1
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            UnhookWindowsHookEx(_hookID);
+            if (_hookID != IntPtr.Zero)
+            {
+                UnhookWindowsHookEx(_hookID);
+            }
             base.OnFormClosing(e);
         }
     }
