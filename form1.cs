@@ -27,6 +27,8 @@ namespace NezulaMacro
         private const int WH_KEYBOARD_LL = 13;
         private const int WM_KEYDOWN = 0x0100;
         private const int WM_KEYUP = 0x0101;
+        private const int WM_XBUTTONDOWN = 0x020B;
+        private const int WM_XBUTTONUP = 0x020C;
 
         private LowLevelKeyboardProc _proc;
         private IntPtr _hookID = IntPtr.Zero;
@@ -42,13 +44,14 @@ namespace NezulaMacro
         private float clickInterval = 100.0f;
 
         private Guna2TextBox? cpsTextBox;
-        private Guna2CheckBox? toggleCheckBox;
+        private Guna2ComboBox? modeComboBox;
         private Guna2Button? startButton;
         private Guna2Button? stopButton;
         private Guna2TextBox? keybindTextBox;
 
         private Keys toggleKey = Keys.None;
         private bool shiftPressed = false;
+        private bool isToggleMode = false;
 
         public Form1()
         {
@@ -79,14 +82,16 @@ namespace NezulaMacro
             };
             this.Controls.Add(leftPanel);
 
-            toggleCheckBox = new Guna2CheckBox
+            modeComboBox = new Guna2ComboBox
             {
-                Text = "Toggle",
                 Location = new System.Drawing.Point(10, 10),
+                Size = new System.Drawing.Size(100, 25),
                 ForeColor = System.Drawing.Color.White,
-                CheckedState = { BorderColor = System.Drawing.Color.FromArgb(94, 148, 255) }
+                FillColor = System.Drawing.Color.FromArgb(50, 50, 50),
+                Items = { "Hold", "Toggle" }
             };
-            leftPanel.Controls.Add(toggleCheckBox);
+            modeComboBox.SelectedIndexChanged += ModeComboBox_SelectedIndexChanged;
+            leftPanel.Controls.Add(modeComboBox);
 
             startButton = new Guna2Button
             {
@@ -129,6 +134,11 @@ namespace NezulaMacro
             leftPanel.Controls.Add(keybindTextBox);
         }
 
+        private void ModeComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            isToggleMode = modeComboBox!.SelectedIndex == 1;
+        }
+
         private void KeybindTextBox_KeyDown(object? sender, KeyEventArgs e)
         {
             toggleKey = e.KeyCode;
@@ -147,7 +157,7 @@ namespace NezulaMacro
             if (!isClicking)
             {
                 isClicking = true;
-                clickThread = new Thread(ClickLoop);
+                clickThread = new Thread(async () => await ClickLoop());
                 clickThread.IsBackground = true;
                 clickThread.Start();
             }
@@ -159,21 +169,29 @@ namespace NezulaMacro
             clickThread?.Join();
         }
 
-        private void ClickLoop()
+        private async Task ClickLoop()
         {
             var stopwatch = new System.Diagnostics.Stopwatch();
+            long lastTick = stopwatch.ElapsedMilliseconds;
+
             while (isClicking)
             {
                 stopwatch.Restart();
                 mouse_event(MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
                 stopwatch.Stop();
 
-                var elapsed = stopwatch.ElapsedMilliseconds;
-                var sleepTime = (int)(clickInterval - elapsed);
+                long elapsed = stopwatch.ElapsedMilliseconds;
+                long expectedInterval = (long)clickInterval;
+                long sleepTime = expectedInterval - elapsed;
+
                 if (sleepTime > 0)
                 {
-                    Thread.Sleep(sleepTime);
+                    await Task.Delay((int)sleepTime);
                 }
+
+                long currentTick = stopwatch.ElapsedMilliseconds;
+                long actualInterval = currentTick - lastTick;
+                lastTick = currentTick;
             }
         }
 
@@ -188,12 +206,12 @@ namespace NezulaMacro
 
         private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
-            if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_KEYUP))
+            if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_KEYUP || wParam == (IntPtr)WM_XBUTTONDOWN || wParam == (IntPtr)WM_XBUTTONUP))
             {
                 int vkCode = Marshal.ReadInt32(lParam);
                 Keys key = (Keys)vkCode;
 
-                if (wParam == (IntPtr)WM_KEYDOWN)
+                if (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_XBUTTONDOWN)
                 {
                     if (key == Keys.ShiftKey)
                     {
@@ -201,9 +219,16 @@ namespace NezulaMacro
                     }
                     else if (key == toggleKey && shiftPressed == ModifierKeys.HasFlag(Keys.Shift))
                     {
-                        if (isClicking)
+                        if (isToggleMode)
                         {
-                            StopClicking();
+                            if (isClicking)
+                            {
+                                StopClicking();
+                            }
+                            else
+                            {
+                                StartClicking();
+                            }
                         }
                         else
                         {
@@ -211,9 +236,16 @@ namespace NezulaMacro
                         }
                     }
                 }
-                else if (wParam == (IntPtr)WM_KEYUP && key == Keys.ShiftKey)
+                else if (wParam == (IntPtr)WM_KEYUP || wParam == (IntPtr)WM_XBUTTONUP)
                 {
-                    shiftPressed = false;
+                    if (key == Keys.ShiftKey)
+                    {
+                        shiftPressed = false;
+                    }
+                    else if (!isToggleMode && key == toggleKey && shiftPressed == ModifierKeys.HasFlag(Keys.Shift))
+                    {
+                        StopClicking();
+                    }
                 }
             }
 
@@ -227,6 +259,11 @@ namespace NezulaMacro
                 UnhookWindowsHookEx(_hookID);
             }
             base.OnFormClosing(e);
+        }
+
+        private void Form1_Load_1(object sender, EventArgs e)
+        {
+
         }
     }
 }
