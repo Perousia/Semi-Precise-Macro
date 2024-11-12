@@ -1,1 +1,1 @@
-Discontinued Autoclicker/Macro, couldn't get it to be 100% accurate 
+Discontinued the autoclicker/macro project due to difficulties in achieving precise timing, as it had some issues with accuracy and consistency 
