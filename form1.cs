@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Guna.UI2.WinForms;
 
-namespace NezulaMacro
+namespace AccurateAutoclicker
 {
     public partial class Form1 : Form
     {
