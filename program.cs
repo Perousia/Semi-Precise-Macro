@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace NezulaMacro
+namespace AccurateAutoclicker
 {
     static class Program
     {
