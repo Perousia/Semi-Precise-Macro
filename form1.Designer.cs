@@ -1,4 +1,4 @@
-namespace NezulaMacro
+namespace AccurateAutoclicker
 {
     partial class Form1
     {
